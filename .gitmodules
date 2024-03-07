@@ -1,0 +1,3 @@
+[submodule "deps/libdshowcapture"]
+	path = deps/libdshowcapture
+	url = https://github.com/obsproject/libdshowcapture.git
