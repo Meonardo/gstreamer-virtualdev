@@ -29,6 +29,8 @@ target_sources(
 )
 
 # add subdirectories
+## util
+add_subdirectory(deps/util)
 ## camera
 add_subdirectory(src/camera)
 

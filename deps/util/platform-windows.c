@@ -27,12 +27,12 @@
 #include "platform.h"
 #include "darray.h"
 #include "dstr.h"
-#include "obsconfig.h"
 #include "util_uint64.h"
+
 #include "windows/win-registry.h"
 #include "windows/win-version.h"
 
-#include "../../deps/w32-pthreads/pthread.h"
+#include "pthread.h"
 
 #define MAX_SZ_LEN 256
 
