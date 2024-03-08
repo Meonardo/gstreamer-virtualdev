@@ -28,6 +28,10 @@ target_sources(
   src/main.cpp
 )
 
+# add subdirectories
+## camera
+add_subdirectory(src/camera)
+
 # find GStreamer dependencies
 set(ENV{PKG_CONFIG_PATH} ${GSTREAMER_PKG_DIR})
 
