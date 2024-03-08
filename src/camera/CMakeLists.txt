@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.24...3.25)
 
-set(DEPS_ROOT_DIR "${CMAKE_SOURCE_DIR}/deps")
-set(W32_PTHREAD_ROOT_DIR "${DEPS_ROOT_DIR}/w32-pthreads")
+set(DEPS_ROOT_DIR ${CMAKE_SOURCE_DIR}/deps)
+set(W32_PTHREAD_ROOT_DIR ${DEPS_ROOT_DIR}/w32-pthreads)
 
 # comutils
 add_library(obs-comutils INTERFACE)
@@ -37,35 +37,25 @@ add_subdirectory(virtualcam-module)
 add_library(win-dshow MODULE)
 add_library(dshow ALIAS win-dshow)
 
-target_sources(
-  win-dshow 
-  PRIVATE 
-
-  dshow-plugin.cpp 
-  encode-dstr.hpp 
-  ffmpeg-decode.c 
-  ffmpeg-decode.h 
-  win-dshow-encoder.cpp 
-  win-dshow.cpp
-)
-
 target_link_libraries(
   win-dshow
   PRIVATE 
           
-  ${W32_PTHREAD_ROOT_DIR}/lib/$<CONFIG>/w32-pthreads.lib
-  libdshowcapture
   strmiids
   winmm
 )
 
-# include pthreads headers
-target_include_directories(win-dshow PRIVATE "${W32_PTHREAD_ROOT_DIR}/include")
+# include headers
+target_include_directories(
+  win-dshow 
+  PRIVATE 
 
-if(TARGET virtualcam AND TARGET virtualcam-guid)
-  target_sources(win-dshow PRIVATE virtualcam.c)
-  target_link_libraries(win-dshow PRIVATE virtualcam-interface virtualcam-guid)
-  target_compile_definitions(win-dshow PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
+  ${W32_PTHREAD_ROOT_DIR}/include 
+  ${DEPS_ROOT_DIR}
+)
 
-  add_dependencies(win-dshow obs-virtualcam-module)
-endif()
+target_sources(win-dshow PRIVATE virtualcam.c)
+target_link_libraries(win-dshow PRIVATE virtualcam-interface virtualcam-guid)
+target_compile_definitions(win-dshow PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
+
+add_dependencies(win-dshow obs-virtualcam-module)

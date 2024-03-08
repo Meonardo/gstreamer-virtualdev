@@ -73,7 +73,6 @@ target_sources(obs-virtualcam-module PRIVATE cmake/windows/virtualcam-module64.d
 target_link_libraries(obs-virtualcam-module PRIVATE _virtualcam)
 target_compile_definitions(obs-virtualcam-module PRIVATE UNICODE _UNICODE)
 
-# add 
 target_include_directories(obs-virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
 
 # configure_file(virtualcam-install.bat.in virtualcam-install.bat)
