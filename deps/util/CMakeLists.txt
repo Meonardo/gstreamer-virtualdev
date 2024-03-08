@@ -6,16 +6,14 @@ set(DEPS_ROOT_DIR ${CMAKE_SOURCE_DIR}/deps)
 set(W32_PTHREAD_ROOT_DIR ${DEPS_ROOT_DIR}/w32-pthreads)
 
 # comutils
-add_library(obs-comutils INTERFACE)
-add_library(COMutils ALIAS obs-comutils)
-target_sources(obs-comutils INTERFACE ${DEPS_ROOT_DIR}/util/windows/ComPtr.hpp)
-target_include_directories(obs-comutils INTERFACE "${DEPS_ROOT_DIR}")
+add_library(comutils INTERFACE)
+target_sources(comutils INTERFACE ${DEPS_ROOT_DIR}/util/windows/ComPtr.hpp)
+target_include_directories(comutils INTERFACE "${DEPS_ROOT_DIR}")
 
 # winhandle
-add_library(obs-winhandle INTERFACE)
-add_library(winhandle ALIAS obs-winhandle)
-target_sources(obs-winhandle INTERFACE ${DEPS_ROOT_DIR}/util/windows/WinHandle.hpp)
-target_include_directories(obs-winhandle INTERFACE "${DEPS_ROOT_DIR}")
+add_library(winhandle INTERFACE)
+target_sources(winhandle INTERFACE ${DEPS_ROOT_DIR}/util/windows/WinHandle.hpp)
+target_include_directories(winhandle INTERFACE "${DEPS_ROOT_DIR}")
 
 # util library
 add_library(util SHARED)
@@ -65,7 +63,7 @@ target_link_libraries(
     Rpcrt4
 
     winhandle
-    COMutils
+    comutils
 
     ${W32_PTHREAD_ROOT_DIR}/lib/$<CONFIG>/w32-pthreads.lib 
 )

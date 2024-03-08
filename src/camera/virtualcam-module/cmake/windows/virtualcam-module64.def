@@ -1,4 +1,4 @@
-LIBRARY     obs-virtualcam-module64.dll
+LIBRARY     virtualcam-module.dll
 EXPORTS
             DllMain                 PRIVATE
             DllGetClassObject       PRIVATE

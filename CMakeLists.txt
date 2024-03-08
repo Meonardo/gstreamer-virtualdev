@@ -4,7 +4,7 @@ project(gst-virtual-dev VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 # prohibit in-source builds
 file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" _LOC_PATH)

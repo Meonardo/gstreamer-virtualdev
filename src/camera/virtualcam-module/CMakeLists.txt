@@ -41,12 +41,11 @@ else()
   string(SUBSTRING ${GUID_VALS_DATA5} 10 2 GUID_VAL11)
 endif()
 
-add_library(obs-virtualcam-guid INTERFACE)
-add_library(virtualcam-guid ALIAS obs-virtualcam-guid)
+add_library(virtualcam-guid INTERFACE)
 
 configure_file(virtualcam-guid.h.in virtualcam-guid.h)
-target_sources(obs-virtualcam-guid INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-guid.h")
-target_include_directories(obs-virtualcam-guid INTERFACE "${CMAKE_CURRENT_BINARY_DIR}")
+target_sources(virtualcam-guid INTERFACE "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-guid.h")
+target_include_directories(virtualcam-guid INTERFACE "${CMAKE_CURRENT_BINARY_DIR}")
 
 add_library(_virtualcam INTERFACE)
 
@@ -66,14 +65,15 @@ target_link_libraries(
             strmiids
             winmm)
 
-add_library(obs-virtualcam-module MODULE)
-add_library(virtualcam ALIAS obs-virtualcam-module)
+add_library(virtualcam-module MODULE)
 
-target_sources(obs-virtualcam-module PRIVATE cmake/windows/virtualcam-module64.def)
-target_link_libraries(obs-virtualcam-module PRIVATE _virtualcam)
-target_compile_definitions(obs-virtualcam-module PRIVATE UNICODE _UNICODE)
+target_sources(virtualcam-module PRIVATE cmake/windows/virtualcam-module64.def)
+target_link_libraries(virtualcam-module PRIVATE _virtualcam)
+target_compile_definitions(virtualcam-module PRIVATE UNICODE _UNICODE)
 
-target_include_directories(obs-virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
+target_include_directories(virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
+
+set_property(TARGET virtualcam-module PROPERTY FOLDER "camera")
 
 # configure_file(virtualcam-install.bat.in virtualcam-install.bat)
 # target_add_resource(obs-virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
