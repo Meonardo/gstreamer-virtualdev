@@ -28,6 +28,7 @@ target_sources(
   ${PROJECT_NAME}
   PRIVATE 
   
+  src/local-debug.h
   src/main.cpp
 )
 
