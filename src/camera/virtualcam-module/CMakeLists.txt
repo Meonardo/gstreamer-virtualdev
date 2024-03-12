@@ -75,11 +75,23 @@ target_include_directories(virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
 
 set_property(TARGET virtualcam-module PROPERTY FOLDER "camera")
 
-# configure_file(virtualcam-install.bat.in virtualcam-install.bat)
-# target_add_resource(obs-virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
-#                     "${OBS_DATA_DESTINATION}/obs-plugins/win-dshow")
+# POST build steps
+set(OUTPUT_DATA_DEST_DIR ${DATA_DESTINATION}/camera)
 
-# configure_file(virtualcam-uninstall.bat.in virtualcam-uninstall.bat)
-# target_add_resource(obs-virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-uninstall.bat"
-#                     "${OBS_DATA_DESTINATION}/obs-plugins/win-dshow")
+configure_file(virtualcam-install.bat.in virtualcam-install.bat)
+target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
+                    "${OUTPUT_DATA_DEST_DIR}")
+
+configure_file(virtualcam-uninstall.bat.in virtualcam-uninstall.bat)
+target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-uninstall.bat"
+                    "${OUTPUT_DATA_DEST_DIR}")
+
+target_add_resource(virtualcam-module "${CMAKE_CURRENT_SOURCE_DIR}/data/placeholder.png"
+"${OUTPUT_DATA_DEST_DIR}")
+
+add_custom_command(
+    TARGET virtualcam-module
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/virtualcam-module.dll" "${OUTPUT_DATA_DEST_DIR}"
+    VERBATIM)
 

@@ -32,3 +32,30 @@ function(check_uuid uuid_string return_value)
   set(${return_value} ${valid_uuid} PARENT_SCOPE)
   # cmake-format: on
 endfunction()
+
+# Helper function to add a specific resource to a bundle
+function(target_add_resource target resource)
+
+  if(ARGN)
+    set(target_destination "${ARGN}")
+  else()
+    set(target_destination "${DATA_DESTINATION}/${target}")
+  endif()
+
+  message(DEBUG "Add resource '${resource}' to target ${target} at destination '${target_destination}'...")
+
+  install(
+    FILES "${resource}"
+    DESTINATION "${target_destination}"
+    COMPONENT Runtime)
+
+  add_custom_command(
+    TARGET ${target}
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${target_destination}/"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${resource}" "${target_destination}/"
+    COMMENT "Copy ${target} resource ${resource} to ${target_destination}"
+    VERBATIM)
+
+  source_group("Resources" FILES "${resource}")
+endfunction()

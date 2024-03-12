@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+# set output directories
+set(DATA_DESTINATION ${CMAKE_BINARY_DIR}/$<CONFIG>/data)
+
 # prohibit in-source builds
 file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" _LOC_PATH)
 if(EXISTS "${LOC_PATH}")

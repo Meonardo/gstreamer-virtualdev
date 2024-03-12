@@ -53,4 +53,10 @@ target_compile_definitions(dshow PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
 
 add_dependencies(dshow virtualcam-module)
 
+add_custom_command(
+    TARGET dshow
+    POST_BUILD
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dshow.dll" "${CMAKE_BINARY_DIR}/$<CONFIG>"
+    VERBATIM)
+
 set_property(TARGET dshow PROPERTY FOLDER "camera")
