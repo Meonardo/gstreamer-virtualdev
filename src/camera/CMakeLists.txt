@@ -17,14 +17,20 @@ target_sources(
 target_include_directories(virtualcam-interface INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 
-# dshow 
+# camera 
 include(cmake/libdshowcapture.cmake)
 add_subdirectory(virtualcam-module)
 
-add_library(dshow MODULE)
+add_library(
+  camera 
+  SHARED 
+
+  virtualcam.h
+  virtualcam.c
+)
 
 target_link_libraries(
-  dshow
+  camera
   PRIVATE 
   
   util
@@ -35,28 +41,22 @@ target_link_libraries(
 )
 
 target_include_directories(
-  dshow 
+  camera 
   PRIVATE 
 
   ${W32_PTHREAD_ROOT_DIR}/include 
   ${DEPS_ROOT_DIR}
 )
 
-target_sources(
-  dshow 
-  PRIVATE
+target_compile_definitions(camera PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
 
-  virtualcam.c
-)
-
-target_compile_definitions(dshow PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
-
-add_dependencies(dshow virtualcam-module)
+add_dependencies(camera virtualcam-module)
 
 add_custom_command(
-    TARGET dshow
+    TARGET camera
     POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/dshow.dll" "${CMAKE_BINARY_DIR}/$<CONFIG>"
-    VERBATIM)
 
-set_property(TARGET dshow PROPERTY FOLDER "camera")
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/camera.dll" "${CMAKE_BINARY_DIR}/$<CONFIG>"
+)
+
+set_property(TARGET camera PROPERTY FOLDER "camera")

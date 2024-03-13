@@ -1,6 +1,6 @@
-/// gstreamer headers
 #include <Windows.h>
 
+/// gstreamer headers
 #include <gio/gio.h>
 #include <glib.h>
 #include <gst/app/gstappsink.h>
@@ -13,14 +13,13 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
-#include <fstream>
 #include <memory>
 #include <mutex>
 #include <string>
 
+// Logging
 #include "local-debug.h"
 
-// Logging
 int log_level = LOG_VERB;
 gboolean log_timestamps = TRUE;
 gboolean log_colors = TRUE, disable_colors = FALSE;
@@ -150,7 +149,6 @@ static GstFlowReturn on_new_video_sample(GstElement* sink, App* app) {
     return GST_FLOW_ERROR;
   }
 
-  LOGI("got video buffer with size: %d\n", map.size);
 
   gst_buffer_unmap(buffer, &map);
   gst_sample_unref(sample);
@@ -180,7 +178,6 @@ static GstFlowReturn on_new_audio_sample(GstElement* sink, App* app) {
     return GST_FLOW_ERROR;
   }
 
-  LOGI("got audio buffer with size: %d\n", map.size);
 
   gst_buffer_unmap(buffer, &map);
   gst_sample_unref(sample);

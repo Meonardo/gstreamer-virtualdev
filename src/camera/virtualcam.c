@@ -1,6 +1,10 @@
 #include "shared-memory-queue.h"
+
+#include "util/bmem.h"
 #include "util/platform.h"
 #include "util/threading.h"
+
+#include "virtualcam.h"
 
 struct virtualcam_data {
   video_queue_t* vq;
@@ -13,19 +17,27 @@ static const char* virtualcam_name(void* unused) {
   return "Virtual Camera Output";
 }
 
-static void virtualcam_destroy(void* data) {
+static void virtualcam_deactive(struct virtualcam_data* vcam) {
+  video_queue_close(vcam->vq);
+  vcam->vq = NULL;
+
+  os_atomic_set_bool(&vcam->active, false);
+  os_atomic_set_bool(&vcam->stopping, false);
+}
+
+void virtualcam_destroy(void* data) {
   struct virtualcam_data* vcam = (struct virtualcam_data*)data;
   video_queue_close(vcam->vq);
   bfree(data);
 }
 
-static void* virtualcam_create() {
+void* virtualcam_create() {
   struct virtualcam_data* vcam =
       (struct virtualcam_data*)bzalloc(sizeof(*vcam));
   return vcam;
 }
 
-static bool virtualcam_start(void* data) {
+bool virtualcam_start(void* data) {
   struct virtualcam_data* vcam = (struct virtualcam_data*)data;
   uint32_t width = 1920;
   uint32_t height = 1080;
@@ -47,23 +59,18 @@ static bool virtualcam_start(void* data) {
   return true;
 }
 
-static void virtualcam_deactive(struct virtualcam_data* vcam) {
-  video_queue_close(vcam->vq);
-  vcam->vq = NULL;
-
-  os_atomic_set_bool(&vcam->active, false);
-  os_atomic_set_bool(&vcam->stopping, false);
-}
-
-static void virtualcam_stop(void* data, uint64_t ts) {
+void virtualcam_stop(void* data, uint64_t ts) {
   struct virtualcam_data* vcam = (struct virtualcam_data*)data;
   os_atomic_set_bool(&vcam->stopping, true);
 
   UNUSED_PARAMETER(ts);
 }
 
-static void virtual_video(void* param, struct video_data* frame) {
-  struct virtualcam_data* vcam = (struct virtualcam_data*)param;
+void virtual_video(void* data,
+                   uint8_t** v_data,
+                   uint32_t* linesize,
+                   uint64_t timestamp) {
+  struct virtualcam_data* vcam = (struct virtualcam_data*)data;
 
   if (!vcam->vq)
     return;
@@ -76,5 +83,5 @@ static void virtual_video(void* param, struct video_data* frame) {
     return;
   }
 
-  video_queue_write(vcam->vq, NULL, NULL, 0);
+  video_queue_write(vcam->vq, v_data, linesize, timestamp);
 }

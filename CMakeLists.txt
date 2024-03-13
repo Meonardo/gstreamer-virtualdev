@@ -67,4 +67,7 @@ target_link_libraries(
   PRIVATE 
 
   ${GST_LIBRARIES}
+
+  util
+  camera
 )
