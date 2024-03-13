@@ -240,10 +240,10 @@ static GstFlowReturn on_new_audio_sample(GstElement* sink, App* app) {
 
 static int init(App* app) {
   gchar* video_pipeline = g_strdup_printf(
-      "videotestsrc is-live=true ! videoconvert ! queue ! "
+      "rtspsrc location=rtsp://172.16.30.55/1 latency=50 protocols=4 ! queue "
+      "! rtph264depay ! h264parse ! queue ! d3d11h264dec ! queue ! "
       "video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! queue ! "
-      "appsink "
-      "name=videosink");
+      "appsink name=videosink");
   const gchar* audio_pipeline =
       "audiotestsrc is-live=true wave=sine ! audioconvert ! queue ! appsink "
       "name=audiosink";

@@ -29,6 +29,8 @@ add_library(
   virtualcam.c
 )
 
+target_compile_definitions(camera PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
+
 target_link_libraries(
   camera
   PRIVATE 
@@ -48,10 +50,10 @@ target_include_directories(
   ${DEPS_ROOT_DIR}
 )
 
-target_compile_definitions(camera PRIVATE VIRTUALCAM_AVAILABLE UNICODE _UNICODE)
-
+# add virtualcam-module as a dependency
 add_dependencies(camera virtualcam-module)
 
+# copy camera.dll to build directory
 add_custom_command(
     TARGET camera
     POST_BUILD
