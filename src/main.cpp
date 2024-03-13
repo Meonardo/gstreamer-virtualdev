@@ -1,4 +1,6 @@
 /// gstreamer headers
+#include <Windows.h>
+
 #include <gio/gio.h>
 #include <glib.h>
 #include <gst/app/gstappsink.h>
@@ -8,9 +10,8 @@
 #include <gst/sdp/gstsdpmessage.h>
 #include <gst/video/video-info.h>
 
-#include <inttypes.h>
-#include <signal.h>
-
+#include <chrono>
+#include <csignal>
 #include <cstdlib>
 #include <fstream>
 #include <memory>
@@ -19,12 +20,29 @@
 
 #include "local-debug.h"
 
-/* Logging */
+// Logging
 int log_level = LOG_VERB;
 gboolean log_timestamps = TRUE;
 gboolean log_colors = TRUE, disable_colors = FALSE;
 
-static void PrintElements(GstRank rank, GstElementFactoryListType type) {
+// Application context
+struct App {
+  GMainContext* context = nullptr;
+  GstElement* pipeline = nullptr;
+  GMainLoop* loop = nullptr;
+  GstState pipeline_state = GST_STATE_NULL;
+
+  // Audio sink
+  GstElement* audio_sink = nullptr;
+  // Video sink
+  GstElement* video_sink = nullptr;
+
+  // thread for the app
+  std::unique_ptr<std::thread> thread = nullptr;
+};
+
+static void printe_register_elements(GstRank rank,
+                                     GstElementFactoryListType type) {
   GList *elements, *l;
   elements = gst_element_factory_list_get_elements(type, rank);
   for (l = elements; l != nullptr; l = l->next) {
@@ -38,15 +56,6 @@ static void PrintElements(GstRank rank, GstElementFactoryListType type) {
   }
   gst_plugin_feature_list_free(elements);
 }
-
-struct App {
-  GstElement* pipeline = nullptr;
-  GMainContext* context = nullptr;
-  GMainLoop* loop = nullptr;
-  GstState pipeline_state = GST_STATE_NULL;
-
-  GstElement* app_sink = nullptr;
-};
 
 static bool update_pipeline_state(App* app, GstState new_state) {
   if (app->pipeline_state == new_state) {
@@ -119,7 +128,8 @@ static void on_bus_message(App* app, GstBus* bus, GstMessage* msg) {
   }
 }
 
-static GstFlowReturn on_new_sample(GstElement* sink, App* app) {
+// Video buffer callback from appsink element
+static GstFlowReturn on_new_video_sample(GstElement* sink, App* app) {
   GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
   if (sample == nullptr) {
     LOGE("failed to get sample from appsink\n");
@@ -140,7 +150,37 @@ static GstFlowReturn on_new_sample(GstElement* sink, App* app) {
     return GST_FLOW_ERROR;
   }
 
-  LOGI("got buffer with size: %d\n", map.size);
+  LOGI("got video buffer with size: %d\n", map.size);
+
+  gst_buffer_unmap(buffer, &map);
+  gst_sample_unref(sample);
+
+  return GST_FLOW_OK;
+}
+
+// Audio buffer callback from appsink element
+static GstFlowReturn on_new_audio_sample(GstElement* sink, App* app) {
+  GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
+  if (sample == nullptr) {
+    LOGE("failed to get sample from appsink\n");
+    return GST_FLOW_ERROR;
+  }
+
+  GstBuffer* buffer = gst_sample_get_buffer(sample);
+  if (buffer == nullptr) {
+    LOGE("failed to get buffer from sample\n");
+    gst_sample_unref(sample);
+    return GST_FLOW_ERROR;
+  }
+
+  GstMapInfo map;
+  if (!gst_buffer_map(buffer, &map, GST_MAP_READ)) {
+    LOGE("failed to map buffer\n");
+    gst_sample_unref(sample);
+    return GST_FLOW_ERROR;
+  }
+
+  LOGI("got audio buffer with size: %d\n", map.size);
 
   gst_buffer_unmap(buffer, &map);
   gst_sample_unref(sample);
@@ -149,14 +189,18 @@ static GstFlowReturn on_new_sample(GstElement* sink, App* app) {
 }
 
 static int init(App* app) {
-  // create the main loop
-  app->context = g_main_context_new();
+  gchar* video_pipeline = g_strdup_printf(
+      "videotestsrc is-live=true ! videoconvert ! queue ! "
+      "video/x-raw,width=1920,height=1080,framerate=30/1 ! queue ! appsink "
+      "name=videosink");
+  const gchar* audio_pipeline =
+      "audiotestsrc is-live=true wave=sine ! audioconvert ! queue ! appsink "
+      "name=audiosink";
+
+  auto pipeline_desc = g_strdup_printf("%s %s", video_pipeline, audio_pipeline);
+  g_free(video_pipeline);
 
   // create the pipeline
-  auto pipeline_desc = g_strdup_printf(
-      "videotestsrc is-live=true ! videoconvert ! queue !  "
-      "video/x-raw,width=1920,height=1080,framerate=30/1 ! queue ! "
-      "appsink name=appsink");
   GError* error = nullptr;
   app->pipeline = gst_parse_launch(pipeline_desc, &error);
   g_free(pipeline_desc);
@@ -166,16 +210,29 @@ static int init(App* app) {
   }
 
   // register appsink callback
-  app->app_sink = gst_bin_get_by_name(GST_BIN(app->pipeline), "appsink");
-  if (app->app_sink == nullptr) {
+  // video
+  app->video_sink = gst_bin_get_by_name(GST_BIN(app->pipeline), "videosink");
+  if (app->video_sink == nullptr) {
     LOGE("app sink not found\n");
     return -12;
   }
-  g_object_set(app->app_sink, "emit-signals", TRUE, nullptr);
-  g_object_set(app->app_sink, "max-buffers", 1, NULL);
-  g_object_set(app->app_sink, "drop", TRUE, NULL);
+  g_object_set(app->video_sink, "emit-signals", TRUE, nullptr);
+  g_object_set(app->video_sink, "max-buffers", 1, NULL);
+  g_object_set(app->video_sink, "drop", TRUE, NULL);
+  g_signal_connect(app->video_sink, "new-sample",
+                   G_CALLBACK(on_new_video_sample), app);
 
-  g_signal_connect(app->app_sink, "new-sample", G_CALLBACK(on_new_sample), app);
+  // audio
+  app->audio_sink = gst_bin_get_by_name(GST_BIN(app->pipeline), "audiosink");
+  if (app->audio_sink == nullptr) {
+    LOGE("app sink not found\n");
+    return -12;
+  }
+  g_object_set(app->audio_sink, "emit-signals", TRUE, nullptr);
+  g_object_set(app->audio_sink, "max-buffers", 30, NULL);
+  g_object_set(app->audio_sink, "drop", TRUE, NULL);
+  g_signal_connect(app->audio_sink, "new-sample",
+                   G_CALLBACK(on_new_audio_sample), app);
 
   // set the pipeline to READY and return
   if (!update_pipeline_state(app, GST_STATE_READY)) {
@@ -188,22 +245,31 @@ static int init(App* app) {
 static void deinit(App* app) {
   // quit main loop
   g_main_loop_quit(app->loop);
+
+  if (app->thread != nullptr && app->thread->joinable()) {
+    app->thread->join();
+  }
+
   // reset the pipeline state to NULL
   update_pipeline_state(app, GST_STATE_NULL);
   // free resources
   g_main_loop_unref(app->loop);
   app->loop = nullptr;
-  gst_object_unref(app->app_sink);
-  app->app_sink = nullptr;
-  g_main_context_unref(app->context);
-  app->context = nullptr;
+  gst_object_unref(app->video_sink);
+  app->video_sink = nullptr;
   gst_object_unref(app->pipeline);
   app->pipeline = nullptr;
 }
 
 static void run(App* app) {
-  // instruct the bus to emit signals for each received message,
-  // and connect to the interesting signals
+  // init thread context for gstreamer
+  app->context = g_main_context_new();
+  if (app->context == nullptr) {
+    LOGE("failed to create gstreamer thread context\n");
+    return;
+  }
+  g_main_context_push_thread_default(app->context);
+
   GstBus* bus = gst_element_get_bus(app->pipeline);
   gst_bus_add_signal_watch(bus);
   g_signal_connect(
@@ -215,7 +281,7 @@ static void run(App* app) {
 
   // create the main loop thread
   LOGI("===============> App entering main loop...\n");
-  app->loop = g_main_loop_new(app->context, FALSE);
+  app->loop = g_main_loop_new(nullptr, FALSE);
 
   // start to receive data
   update_pipeline_state(app, GST_STATE_PLAYING);
@@ -224,6 +290,7 @@ static void run(App* app) {
   g_main_loop_run(app->loop);
 
   LOGI("<=============== App exited main loop\n");
+  g_main_context_pop_thread_default(app->context);
   // clean up
   gst_bus_remove_signal_watch(bus);
   gst_object_unref(bus);
@@ -234,19 +301,23 @@ static App* main_app = nullptr;
 
 // signal handler
 static volatile gint stop = 0;
-static void handle_signal(int signum) {
+void handle_signal(int signum) {
+  LOGW("signal %d received.\n", signum);
   LOG(LOG_INFO, "Stopping...\n");
+
+  // cleanup and close up stuff here
+  // terminate program
   if (g_atomic_int_compare_and_exchange(&stop, 0, 1)) {
     deinit(main_app);
   } else {
     g_atomic_int_inc(&stop);
     if (g_atomic_int_get(&stop) > 2)
-      exit(1);
+      exit(signum);
   }
 }
 
-int main() {
-  /* Handle SIGINT (CTRL-C), SIGTERM (from service managers) */
+int main(int argc, char* argv[]) {
+  // handle SIGINT (CTRL-C), SIGTERM
   signal(SIGINT, handle_signal);
   signal(SIGTERM, handle_signal);
 
@@ -255,7 +326,6 @@ int main() {
 
   // init gstreamer
   gst_init(nullptr, nullptr);
-
   LOGI("GStreamer initialized\n");
 
   // create app
@@ -269,16 +339,18 @@ int main() {
     // can not init the app, exit it.
     return ret;
   }
-
   LOGI("App initialized\n");
 
   // create mainloop and run it
   run(&app);
 
-  // destroy gstreamer
-  gst_deinit();
-
+  // release app
+  deinit(&app);
   LOGI("App shutdown\n");
 
+  // deinit gstreamer
+  gst_deinit();
+  LOGI("GStreamer destoried\n");
+  
   return 0;
 }
