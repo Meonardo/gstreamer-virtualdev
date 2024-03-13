@@ -17,6 +17,8 @@
 #include <mutex>
 #include <string>
 
+#include "camera/virtualcam.h"
+
 // Logging
 #include "local-debug.h"
 
@@ -35,6 +37,8 @@ struct App {
   GstElement* audio_sink = nullptr;
   // Video sink
   GstElement* video_sink = nullptr;
+  void* virtualcam = nullptr;
+  GstVideoInfo* video_info = nullptr;
 
   // thread for the app
   std::unique_ptr<std::thread> thread = nullptr;
@@ -127,6 +131,31 @@ static void on_bus_message(App* app, GstBus* bus, GstMessage* msg) {
   }
 }
 
+void get_video_info(App* app, GstSample* sample) {
+  if (app->video_info != nullptr) {
+    return;
+  }
+
+  GstVideoInfo video_info_;
+  gst_video_info_init(&video_info_);
+
+  GstCaps* caps = gst_sample_get_caps(sample);
+  if (gst_video_info_from_caps(&video_info_, caps)) {
+    LOGI("The video size of the buffer is %dx%d.\n", video_info_.width,
+         video_info_.height);
+  } else {
+    LOGE("Could not get video info from caps.\n");
+  }
+
+  gst_caps_unref(caps);
+
+  app->video_info = gst_video_info_copy(&video_info_);
+
+  GstVideoFormat gst_format = GST_VIDEO_INFO_FORMAT(app->video_info);
+  LOGI("The video format of the buffer is %s.\n",
+       gst_video_format_to_string(gst_format));
+}
+
 // Video buffer callback from appsink element
 static GstFlowReturn on_new_video_sample(GstElement* sink, App* app) {
   GstSample* sample = gst_app_sink_pull_sample(GST_APP_SINK(sink));
@@ -149,6 +178,31 @@ static GstFlowReturn on_new_video_sample(GstElement* sink, App* app) {
     return GST_FLOW_ERROR;
   }
 
+  // get video info
+  get_video_info(app, sample);
+
+  guint8* data = map.data;
+  gint width = app->video_info->width;
+  gint height = app->video_info->height;
+  guint stride_Y = width;        // Typically, stride for Y is equal to width
+  guint stride_UV = height / 2;  // Typically, stride for UV is half of width
+
+  // Access Y plane
+  guint8* Y_plane = data;
+  // Access UV plane
+  guint8* UV_plane = data + stride_Y * height;
+  // get PTS
+  GstClockTime pts = GST_BUFFER_PTS(buffer);
+
+  VideoFrame vf = {0};
+  vf.data[0] = Y_plane;
+  vf.data[1] = UV_plane;
+  vf.linesize[0] = stride_Y;
+  vf.linesize[1] = stride_UV;
+  vf.timestamp = pts;
+
+  // write to virtual camera module
+  virtual_video(app->virtualcam, &vf);
 
   gst_buffer_unmap(buffer, &map);
   gst_sample_unref(sample);
@@ -178,7 +232,6 @@ static GstFlowReturn on_new_audio_sample(GstElement* sink, App* app) {
     return GST_FLOW_ERROR;
   }
 
-
   gst_buffer_unmap(buffer, &map);
   gst_sample_unref(sample);
 
@@ -188,7 +241,8 @@ static GstFlowReturn on_new_audio_sample(GstElement* sink, App* app) {
 static int init(App* app) {
   gchar* video_pipeline = g_strdup_printf(
       "videotestsrc is-live=true ! videoconvert ! queue ! "
-      "video/x-raw,width=1920,height=1080,framerate=30/1 ! queue ! appsink "
+      "video/x-raw,format=NV12,width=1920,height=1080,framerate=30/1 ! queue ! "
+      "appsink "
       "name=videosink");
   const gchar* audio_pipeline =
       "audiotestsrc is-live=true wave=sine ! audioconvert ! queue ! appsink "
@@ -200,11 +254,13 @@ static int init(App* app) {
   // create the pipeline
   GError* error = nullptr;
   app->pipeline = gst_parse_launch(pipeline_desc, &error);
-  g_free(pipeline_desc);
   if (app->pipeline == nullptr || error != nullptr) {
+    g_free(pipeline_desc);
     LOGE("failed to create pipeline, erorr: %s\n", error->message);
     return -11;
   }
+  LOGI("Running pipeline:\n\n%s\n\n", pipeline_desc);
+  g_free(pipeline_desc);
 
   // register appsink callback
   // video
@@ -338,6 +394,10 @@ int main(int argc, char* argv[]) {
   }
   LOGI("App initialized\n");
 
+  // init virtualcam
+  app.virtualcam = virtualcam_create();
+  virtualcam_start(app.virtualcam, 1920, 1080, 30);
+
   // create mainloop and run it
   run(&app);
 
@@ -348,6 +408,6 @@ int main(int argc, char* argv[]) {
   // deinit gstreamer
   gst_deinit();
   LOGI("GStreamer destoried\n");
-  
+
   return 0;
 }

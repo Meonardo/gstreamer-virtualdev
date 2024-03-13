@@ -12,11 +12,6 @@ struct virtualcam_data {
   volatile bool stopping;
 };
 
-static const char* virtualcam_name(void* unused) {
-  UNUSED_PARAMETER(unused);
-  return "Virtual Camera Output";
-}
-
 static void virtualcam_deactive(struct virtualcam_data* vcam) {
   video_queue_close(vcam->vq);
   vcam->vq = NULL;
@@ -37,24 +32,30 @@ void* virtualcam_create() {
   return vcam;
 }
 
-bool virtualcam_start(void* data) {
+bool virtualcam_start(void* data, uint32_t w, uint32_t h, uint16_t fps) {
+  if (w == 0 || h == 0 || fps == 0) {
+    blog(LOG_ERROR, "Invalid resolution or fps");
+    return false;
+  }
+
   struct virtualcam_data* vcam = (struct virtualcam_data*)data;
-  uint32_t width = 1920;
-  uint32_t height = 1080;
-  uint64_t interval = 333333;  // 30 fps
+  uint64_t interval = 10000000ULL / fps;
 
   char res[64];
-  snprintf(res, sizeof(res), "%dx%dx%lld", (int)width, (int)height,
-           (long long)interval);
+  snprintf(res, sizeof(res), "%dx%dx%lld", (int)w, (int)h, (long long)interval);
 
   char* res_file = os_get_config_path_ptr("obs-virtualcam.txt");
   os_quick_write_utf8_file_safe(res_file, res, strlen(res), false, "tmp", NULL);
   bfree(res_file);
 
-  vcam->vq = video_queue_create(width, height, interval);
+  vcam->vq = video_queue_create(w, h, interval);
   if (!vcam->vq) {
     return false;
   }
+
+  os_atomic_set_bool(&vcam->active, true);
+  os_atomic_set_bool(&vcam->stopping, false);
+  blog(LOG_INFO, "Virtual output started");
 
   return true;
 }
@@ -66,10 +67,7 @@ void virtualcam_stop(void* data, uint64_t ts) {
   UNUSED_PARAMETER(ts);
 }
 
-void virtual_video(void* data,
-                   uint8_t** v_data,
-                   uint32_t* linesize,
-                   uint64_t timestamp) {
+void virtual_video(void* data, VideoFrame* frame) {
   struct virtualcam_data* vcam = (struct virtualcam_data*)data;
 
   if (!vcam->vq)
@@ -83,5 +81,5 @@ void virtual_video(void* data,
     return;
   }
 
-  video_queue_write(vcam->vq, v_data, linesize, timestamp);
+  video_queue_write(vcam->vq, frame->data, frame->linesize, frame->timestamp);
 }

@@ -68,6 +68,5 @@ target_link_libraries(
 
   ${GST_LIBRARIES}
 
-  util
   camera
 )
