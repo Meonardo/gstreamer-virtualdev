@@ -12,6 +12,11 @@ goto checkAdmin
 	)
 
 :uninstallDLLs
+	if exist "%~dp0\data\camera\virtualcam-module32.dll" (
+		regsvr32.exe /u /s "%~dp0\data\camera\virtualcam-module32.dll"
+	) else (
+		regsvr32.exe /u /s virtualcam-module32.dll
+	)
 	if exist "%~dp0\data\camera\virtualcam-module.dll" (
 		regsvr32.exe /u /s "%~dp0\data\camera\virtualcam-module.dll"
 	) else (
