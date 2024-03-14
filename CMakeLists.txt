@@ -78,4 +78,20 @@ if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
 
     camera
   )
+
+  # copy camera to bin directory
+  add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:camera>
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>
+  )
+
+  # copy util to bin directory
+  add_custom_command(
+    TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:util>
+    $<TARGET_FILE_DIR:${PROJECT_NAME}>
+  )
 endif()  

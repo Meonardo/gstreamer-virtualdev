@@ -92,11 +92,9 @@ target_include_directories(virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
 set_property(TARGET virtualcam-module PROPERTY FOLDER "camera")
 
 # data destination directory
-set(OUTPUT_DATA_DEST_DIR ${DATA_DESTINATION}/camera)
+set(OUTPUT_DATA_DEST_DIR "${DATA_DESTINATION}/camera")
 
 if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
-  # build 32-bit version when building 64-bit
-  include(cmake/32bit.cmake)
   # install and uninstall scripts
   configure_file(virtualcam-install.bat.in virtualcam-install.bat)
   target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
@@ -108,6 +106,9 @@ if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
   # placeholder.png
   target_add_resource(virtualcam-module "${CMAKE_CURRENT_SOURCE_DIR}/data/placeholder.png"
   "${OUTPUT_DATA_DEST_DIR}")
+
+  # build 32-bit version when building 64-bit
+  include(cmake/32bit.cmake)
 endif()
 
 # POST build step

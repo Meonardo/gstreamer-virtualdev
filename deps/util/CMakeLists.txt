@@ -74,10 +74,3 @@ target_include_directories(
 
     ${W32_PTHREAD_ROOT_DIR}/include
 )
-
-add_custom_command(
-    TARGET util
-    POST_BUILD
-
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/util.dll" "${CMAKE_BINARY_DIR}/$<CONFIG>"
-)

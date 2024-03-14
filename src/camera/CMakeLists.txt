@@ -53,12 +53,4 @@ target_include_directories(
 # add virtualcam-module as a dependency
 add_dependencies(camera virtualcam-module)
 
-# copy camera.dll to build directory
-add_custom_command(
-    TARGET camera
-    POST_BUILD
-
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/camera.dll" "${CMAKE_BINARY_DIR}/$<CONFIG>"
-)
-
 set_property(TARGET camera PROPERTY FOLDER "camera")

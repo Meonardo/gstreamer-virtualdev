@@ -52,7 +52,7 @@ function(target_add_resource target resource)
   add_custom_command(
     TARGET ${target}
     POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E make_directory "${target_destination}/"
+    COMMAND "${CMAKE_COMMAND}" -E make_directory "${target_destination}"
     COMMAND "${CMAKE_COMMAND}" -E copy "${resource}" "${target_destination}/"
     COMMENT "Copy ${target} resource ${resource} to ${target_destination}"
     VERBATIM)
