@@ -73,7 +73,18 @@ target_link_libraries(
 # virtualcam-module
 add_library(virtualcam-module MODULE)
 
-target_sources(virtualcam-module PRIVATE cmake/windows/virtualcam-module64.def)
+# set output name
+set(OUTPUT_NAME "virtualcam-module")
+
+if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+  target_sources(virtualcam-module PRIVATE cmake/windows/virtualcam-module64.def)
+  set_target_properties(virtualcam-module PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
+else()
+  target_sources(virtualcam-module PRIVATE cmake/windows/virtualcam-module32.def)
+  set(OUTPUT_NAME "virtualcam-module32")
+  set_target_properties(virtualcam-module PROPERTIES OUTPUT_NAME ${OUTPUT_NAME})
+endif()  
+
 target_link_libraries(virtualcam-module PRIVATE _virtualcam)
 target_compile_definitions(virtualcam-module PRIVATE UNICODE _UNICODE)
 target_include_directories(virtualcam-module PRIVATE "${DEPS_ROOT_DIR}")
@@ -83,17 +94,21 @@ set_property(TARGET virtualcam-module PROPERTY FOLDER "camera")
 # data destination directory
 set(OUTPUT_DATA_DEST_DIR ${DATA_DESTINATION}/camera)
 
-# install and uninstall scripts
-configure_file(virtualcam-install.bat.in virtualcam-install.bat)
-target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
-                    "${OUTPUT_DATA_DEST_DIR}")
-configure_file(virtualcam-uninstall.bat.in virtualcam-uninstall.bat)
-target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-uninstall.bat"
-                    "${OUTPUT_DATA_DEST_DIR}")
+if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+  # build 32-bit version when building 64-bit
+  include(cmake/32bit.cmake)
+  # install and uninstall scripts
+  configure_file(virtualcam-install.bat.in virtualcam-install.bat)
+  target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-install.bat"
+                      "${OUTPUT_DATA_DEST_DIR}")
+  configure_file(virtualcam-uninstall.bat.in virtualcam-uninstall.bat)
+  target_add_resource(virtualcam-module "${CMAKE_CURRENT_BINARY_DIR}/virtualcam-uninstall.bat"
+                      "${OUTPUT_DATA_DEST_DIR}")
 
-# placeholder.png
-target_add_resource(virtualcam-module "${CMAKE_CURRENT_SOURCE_DIR}/data/placeholder.png"
-"${OUTPUT_DATA_DEST_DIR}")
+  # placeholder.png
+  target_add_resource(virtualcam-module "${CMAKE_CURRENT_SOURCE_DIR}/data/placeholder.png"
+  "${OUTPUT_DATA_DEST_DIR}")
+endif()
 
 # POST build step
 add_custom_command(
@@ -101,6 +116,6 @@ add_custom_command(
     virtualcam-module
 
     POST_BUILD
-    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/virtualcam-module.dll" "${OUTPUT_DATA_DEST_DIR}"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/${OUTPUT_NAME}.dll" "${OUTPUT_DATA_DEST_DIR}"
     VERBATIM
 )

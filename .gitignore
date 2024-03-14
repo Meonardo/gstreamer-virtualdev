@@ -14,5 +14,6 @@
 /cmake-build-debug/
 /.vs/
 /out/
+/build_x86/
 *.pdb
 *.exp

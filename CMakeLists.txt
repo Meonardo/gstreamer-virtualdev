@@ -4,10 +4,6 @@ project(gst-virtual-dev VERSION 0.0.1)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-
-# set output directories
-set(DATA_DESTINATION ${CMAKE_BINARY_DIR}/$<CONFIG>/data)
 
 # prohibit in-source builds
 file(TO_CMAKE_PATH "${PROJECT_BINARY_DIR}/CMakeLists.txt" _LOC_PATH)
@@ -18,19 +14,14 @@ if(EXISTS "${LOC_PATH}")
 endif()
 unset(_LOC_PATH)
 
-# setup target
-add_executable(${PROJECT_NAME})
+# set default build type
+include(cmake/defaults.cmake)
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
-target_compile_definitions(${PROJECT_NAME} PRIVATE _WIN32_WINNT=0x0601 UNICODE)
-
-target_sources(
-  ${PROJECT_NAME}
-  PRIVATE 
-  
-  src/local-debug.h
-  src/main.cpp
-)
+if(CMAKE_GENERATOR_PLATFORM STREQUAL "Win32")
+  # for generating 32-bit virtual camera
+  message(STATUS "Generating 32-bit virtual camera")
+  include(cmake/32bit.cmake)
+endif()
 
 # add subdirectories
 ## util
@@ -38,35 +29,53 @@ add_subdirectory(deps/util)
 ## camera
 add_subdirectory(src/camera)
 
-# find GStreamer dependencies
-set(ENV{PKG_CONFIG_PATH} ${GSTREAMER_PKG_DIR})
+if(CMAKE_GENERATOR_PLATFORM STREQUAL "x64")
+  message(STATUS "Generating 64-bit virtual camera")
+  
+  # setup target
+  add_executable(${PROJECT_NAME})
 
-find_package(PkgConfig REQUIRED)
-pkg_check_modules(
-  GST REQUIRED 
+  set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${PROJECT_NAME})
+  target_compile_definitions(${PROJECT_NAME} PRIVATE _WIN32_WINNT=0x0601 UNICODE)
 
-  gstreamer-1.0 
-  gstreamer-app-1.0 
-  gstreamer-video-1.0 
-  gstreamer-rtp-1.0 
-  gstreamer-rtsp-1.0
-)
+  target_sources(
+    ${PROJECT_NAME}
+    PRIVATE 
+    
+    src/local-debug.h
+    src/main.cpp
+  )
 
-target_include_directories(
-  ${PROJECT_NAME}
-  PRIVATE 
+  # find GStreamer dependencies
+  set(ENV{PKG_CONFIG_PATH} ${GSTREAMER_PKG_DIR})
 
-  ${GST_INCLUDE_DIRS}
-)
+  find_package(PkgConfig REQUIRED)
+  pkg_check_modules(
+    GST REQUIRED 
 
-# link GStreamer dependencies
-set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LIBPATH:${GST_LIBRARY_DIRS}")
+    gstreamer-1.0 
+    gstreamer-app-1.0 
+    gstreamer-video-1.0 
+    gstreamer-rtp-1.0 
+    gstreamer-rtsp-1.0
+  )
 
-target_link_libraries(
-  ${PROJECT_NAME}
-  PRIVATE 
+  target_include_directories(
+    ${PROJECT_NAME}
+    PRIVATE 
 
-  ${GST_LIBRARIES}
+    ${GST_INCLUDE_DIRS}
+  )
 
-  camera
-)
+  # link GStreamer dependencies
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /LIBPATH:${GST_LIBRARY_DIRS}")
+
+  target_link_libraries(
+    ${PROJECT_NAME}
+    PRIVATE 
+
+    ${GST_LIBRARIES}
+
+    camera
+  )
+endif()  
